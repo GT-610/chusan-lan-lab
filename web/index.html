@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chusan LAN Lab</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0e14;
+      --panel: #121722;
+      --panel-2: #181f2d;
+      --line: #293246;
+      --text: #e7edf7;
+      --muted: #95a1b5;
+      --accent: #62d6c6;
+      --accent-2: #8aa7ff;
+      --warn: #ffc56d;
+      --error: #ff7c8b;
+      --ok: #76df9b;
+      --shadow: 0 18px 50px rgba(0, 0, 0, .28);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(98, 214, 198, .13), transparent 32rem),
+        radial-gradient(circle at 90% 10%, rgba(138, 167, 255, .11), transparent 30rem),
+        var(--bg);
+      color: var(--text);
+      font: 14px/1.5 Inter, "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    .shell { width: min(1500px, calc(100% - 32px)); margin: 0 auto; padding: 26px 0 44px; }
+    header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; margin-bottom: 20px; }
+    h1 { margin: 0 0 5px; font-size: clamp(24px, 4vw, 36px); letter-spacing: -.035em; }
+    h2 { margin: 0 0 14px; font-size: 16px; }
+    p { margin: 0; }
+    .subtitle { color: var(--muted); max-width: 780px; }
+    .badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .badge { border: 1px solid var(--line); background: rgba(18, 23, 34, .82); color: var(--muted); border-radius: 99px; padding: 6px 10px; white-space: nowrap; }
+    .badge.running { color: var(--ok); border-color: rgba(118, 223, 155, .45); }
+    .grid { display: grid; grid-template-columns: minmax(330px, .88fr) minmax(450px, 1.4fr); gap: 16px; }
+    .stack { display: grid; gap: 16px; align-content: start; }
+    .card { background: linear-gradient(160deg, rgba(24, 31, 45, .96), rgba(18, 23, 34, .96)); border: 1px solid var(--line); border-radius: 16px; padding: 17px; box-shadow: var(--shadow); }
+    .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .field { display: grid; gap: 6px; }
+    .field.wide { grid-column: 1 / -1; }
+    label { color: var(--muted); font-size: 12px; }
+    input, select, textarea {
+      width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px;
+      background: #0d121c; color: var(--text); outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(138, 167, 255, .12); }
+    textarea { min-height: 70px; resize: vertical; }
+    .checks { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 12px; margin-top: 12px; }
+    .check { display: flex; align-items: center; gap: 7px; color: var(--text); font-size: 13px; }
+    .check input { width: auto; accent-color: var(--accent); }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    button, .button-link {
+      border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; background: #20293a; color: var(--text);
+      cursor: pointer; text-decoration: none; transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    button:hover, .button-link:hover { transform: translateY(-1px); border-color: #4a5873; background: #273248; }
+    button.primary { background: linear-gradient(135deg, #2b9589, #347c9e); border-color: transparent; }
+    button.danger { color: #ffd7dc; background: rgba(162, 53, 70, .25); }
+    button:disabled { opacity: .42; cursor: not-allowed; transform: none; }
+    .service-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin-bottom: 12px; }
+    .service { background: #0d121c; border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+    .service strong { display: block; }
+    .service span { color: var(--muted); font-size: 12px; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .test-box { border: 1px solid var(--line); border-radius: 12px; padding: 13px; background: rgba(9, 13, 20, .44); }
+    .test-box h3 { margin: 0 0 10px; font-size: 14px; }
+    .mini-fields { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px; }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 9px; }
+    .result { min-height: 42px; margin-top: 12px; border-left: 3px solid var(--accent-2); background: rgba(138, 167, 255, .08); padding: 9px 11px; border-radius: 4px 8px 8px 4px; color: #cdd8f3; }
+    .warning { margin-top: 10px; border-left: 3px solid var(--warn); background: rgba(255, 197, 109, .08); padding: 9px 11px; border-radius: 4px 8px 8px 4px; color: #ffe0aa; }
+    .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+    .stat { border: 1px solid var(--line); border-radius: 10px; background: #0d121c; padding: 9px; }
+    .stat strong { display: block; font-size: 20px; color: var(--accent); }
+    .stat span { color: var(--muted); font-size: 11px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 7px; border-bottom: 1px solid rgba(41, 50, 70, .72); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: 11px; font-weight: 600; position: sticky; top: 0; background: #151b27; }
+    td { font-size: 12px; }
+    .table-wrap { max-height: 470px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+    .events-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .events-tools { display: flex; gap: 8px; align-items: center; }
+    .events-tools select { min-width: 115px; padding: 6px 8px; }
+    .events-tools button, .events-tools a { padding: 6px 9px; }
+    .level-error { color: var(--error); }
+    .level-warn { color: var(--warn); }
+    .level-info { color: var(--ok); }
+    .dir-TX { color: var(--accent-2); }
+    .dir-RX { color: var(--accent); }
+    .nowrap { white-space: nowrap; }
+    .mono { font-family: "Cascadia Mono", Consolas, monospace; }
+    .interpret { display: grid; gap: 7px; }
+    .interpret div { padding: 8px 10px; border-radius: 8px; background: #0d121c; color: var(--muted); }
+    .interpret b { color: var(--text); }
+    summary { cursor: pointer; font-weight: 650; color: var(--text); }
+    details[open] > summary { margin-bottom: 16px; }
+    .inline-details { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+    .workflow { display: grid; gap: 10px; }
+    .step { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #0d121c; }
+    .step .dot { width: 10px; height: 10px; border-radius: 50%; background: #4b566a; flex: 0 0 auto; }
+    .step.done .dot { background: var(--ok); box-shadow: 0 0 10px rgba(118,223,155,.45); }
+    .step.active .dot { background: var(--warn); box-shadow: 0 0 10px rgba(255,197,109,.45); }
+    .invite { border: 1px solid var(--line); border-radius: 10px; padding: 11px; background: #0d121c; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    #toast { position: fixed; right: 20px; bottom: 20px; max-width: min(460px, calc(100% - 40px)); padding: 11px 14px; border-radius: 10px; background: #28344a; border: 1px solid #4c5d7a; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transform: translateY(8px); transition: .2s; }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.error { background: #49242c; border-color: #934653; }
+    @media (max-width: 1050px) { .grid { grid-template-columns: 1fr; } }
+    @media (max-width: 700px) {
+      .shell { width: min(100% - 18px, 1500px); padding-top: 16px; }
+      header, .events-head { flex-direction: column; }
+      .badges { justify-content: flex-start; }
+      .fields, .split, .service-grid { grid-template-columns: 1fr; }
+      .mini-fields { grid-template-columns: 1fr 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div>
+        <h1>Chusan LAN Lab</h1>
+        <p class="subtitle">把每台测试机当作一台柜机：启动后自动执行前置通信，进入可操作状态后直接进行店内招募或加入。无需逐端口手工发包。</p>
+      </div>
+      <div class="badges">
+        <span id="runBadge" class="badge">未启动</span>
+        <span id="instanceBadge" class="badge mono">instance —</span>
+        <span id="streamBadge" class="badge">事件流连接中</span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="stack">
+        <section class="card">
+          <h2>柜机设置</h2>
+          <div class="fields">
+            <div class="field">
+              <label for="nodeName">节点名称</label>
+              <input id="nodeName" maxlength="64" placeholder="例如 base-a / child-1">
+            </div>
+            <div class="field">
+              <label for="group">组别</label>
+              <select id="group"><option>OFF</option><option selected>A</option><option>B</option><option>C</option><option>D</option></select>
+            </div>
+            <div class="field">
+              <label for="groupRole">柜机身份</label>
+              <select id="groupRole"><option value="parent">基准机（Parent）</option><option value="child">从机（Child）</option><option id="groupRoleOff" value="off" disabled>不分配（仅组别 OFF）</option></select>
+            </div>
+            <div class="field">
+              <label for="lanRole">LAN Install 身份</label>
+              <select id="lanRole"><option value="server">配信服务器（Server）</option><option value="client">配信客户端（Client）</option></select>
+            </div>
+            <div class="field">
+              <label for="cabinetMode">框体模式</label>
+              <select id="cabinetMode"><option value="SP">SP（120 Hz）</option><option value="CVT">CVT（60 Hz）</option></select>
+            </div>
+            <div class="field">
+              <label for="eventMode">Event Mode</label>
+              <input id="eventMode" type="number" min="0" max="255" value="0">
+            </div>
+            <div class="field">
+              <label for="musicID">模拟曲目 ID</label>
+              <input id="musicID" type="number" min="0" value="0">
+            </div>
+            <div class="field wide">
+              <label for="bindIP">联机网卡</label>
+              <select id="bindIP"><option value="0.0.0.0">0.0.0.0 — 模拟游戏默认，由 Windows 选择出口</option></select>
+            </div>
+          </div>
+          <div class="checks">
+            <label class="check"><input id="autoJoin" type="checkbox"> 收到招募后自动加入</label>
+          </div>
+          <details class="inline-details">
+            <summary>高级：网络与服务覆盖</summary>
+            <div class="fields">
+              <div class="field wide">
+                <label for="targets">广播目标，每行或逗号分隔</label>
+                <textarea id="targets" spellcheck="false">255.255.255.255</textarea>
+              </div>
+            </div>
+            <div class="checks">
+              <label class="check"><input id="autoReply" type="checkbox" checked> 高级探测自动回包</label>
+              <label class="check"><input id="udpParty" type="checkbox" checked> UDP Party 50200</label>
+              <label class="check"><input id="udpSetting" type="checkbox" checked> UDP Setting 50201</label>
+              <label class="check"><input id="udpAdvertise" type="checkbox" checked> UDP Advertise 50202</label>
+              <label class="check"><input id="tcpParty" type="checkbox" checked> TCP Party 50200</label>
+              <label class="check"><input id="tcpSetting" type="checkbox" checked> TCP Setting 50201</label>
+              <label class="check"><input id="udpLanInstall" type="checkbox" checked> UDP LAN Install 40112</label>
+              <label class="check"><input id="tcpLanInstall" type="checkbox" checked> TCP LAN Install 40110</label>
+            </div>
+          </details>
+          <div class="actions">
+            <button id="startButton" class="primary">启动节点并执行前置流程</button>
+            <button id="stopButton" class="danger" disabled>停止节点</button>
+            <button id="refreshButton">刷新网卡</button>
+          </div>
+          <p class="hint">柜机身份与 LAN Install 身份独立设置。框体模式用于按 120/60 Hz 模拟游戏非阻塞 connect 的 60 tick 等待路径。</p>
+          <div id="egressWarning" class="warning" hidden></div>
+        </section>
+
+        <details class="card">
+          <summary>本机 IPv4 接口</summary>
+          <div class="table-wrap" style="max-height: 260px">
+            <table>
+              <thead><tr><th>接口</th><th>IPv4</th><th>Index</th><th>MTU / Flags</th></tr></thead>
+              <tbody id="interfaceRows"><tr><td colspan="4">加载中…</td></tr></tbody>
+            </table>
+          </div>
+        </details>
+
+        <section class="card">
+          <h2>结果判读</h2>
+          <div class="interpret">
+            <div><b>停在 LAN Install：</b>检查 40112 beacon、40110 sync、唯一 Server 和回程路由。</div>
+            <div><b>停在 Setting：</b>检查 Parent 是否广播 50201、载荷 Host 地址是否可路由，以及 Child 到 Parent 的 TCP 50201。</div>
+            <div><b>看不到邀请：</b>检查 Host 的 `START_RECRUIT` 是否到达 Client，以及广播出口和 A～D 组。</div>
+            <div><b>加入返回 Different*：</b>网络已通，检查组别、Event Mode 和模拟曲目 ID。</div>
+            <div><b>JoinResult Success：</b>继续确认 MemberInfo/State 与双向 HeartBeat；全部完成才算核心 Party 前置链路通过。</div>
+          </div>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="card">
+          <h2>游戏流程模拟</h2>
+          <div class="workflow">
+            <div id="stepLan" class="step"><span class="dot"></span><div><strong>LAN Install</strong><br><span class="hint">40112 beacon → 40110 sync</span></div></div>
+            <div id="stepSetting" class="step"><span class="dot"></span><div><strong>Setting</strong><br><span class="hint">Parent 广播 → Child TCP Request/Response → 长连接心跳</span></div></div>
+            <div id="stepAdvertise" class="step"><span class="dot"></span><div><strong>Advertise</strong><br><span class="hint">UDP 50202 Request；有对端时继续 Response / Go</span></div></div>
+            <div id="stepReady" class="step"><span class="dot"></span><div><strong>可操作</strong><br><span id="phaseText" class="hint">节点未启动</span></div></div>
+          </div>
+          <div class="actions">
+            <button id="recruitStartButton" class="primary" disabled>开始店内招募</button>
+            <button id="recruitStopButton" class="danger" disabled>结束招募</button>
+          </div>
+          <p class="hint">招募自动执行 StartRecruit 首发与重发、Host 回环加入；加入方自动执行 ClientState×2 → RequestJoin → JoinResult → MemberInfo/State → UpdateUserInfo → 双向心跳。</p>
+          <h3 style="margin:16px 0 8px">收到的店内邀请</h3>
+          <div id="inviteList"><div class="hint">暂无邀请</div></div>
+          <div id="flowResult" class="result">启动节点后，流程会自动推进。</div>
+        </section>
+
+        <details class="card">
+          <summary>高级：手动端口与单包诊断</summary>
+          <div>
+          <h2>端口模型</h2>
+          <div class="service-grid">
+            <div class="service"><strong>Party · 50200</strong><span>UDP 招募发现 + TCP 加入/同步</span></div>
+            <div class="service"><strong>Setting · 50201</strong><span>UDP Host 发现 + TCP 组状态</span></div>
+            <div class="service"><strong>Advertise · 50202</strong><span>UDP 待机广告协调</span></div>
+            <div class="service"><strong>LAN beacon · 40112</strong><span>amdaemon Server 发现</span></div>
+            <div class="service"><strong>LAN sync · 40110</strong><span>amdaemon TCP 同步</span></div>
+          </div>
+          <div class="split">
+            <div class="test-box">
+              <h3>UDP 探测</h3>
+              <div class="fields">
+                <div class="field">
+                  <label for="udpService">服务</label>
+                  <select id="udpService"><option value="party">Party 50200</option><option value="setting">Setting 50201</option><option value="advertise">Advertise 50202</option><option value="lan_beacon">LAN beacon 40112</option></select>
+                </div>
+                <div class="field">
+                  <label for="udpTarget">临时目标（留空使用节点配置）</label>
+                  <input id="udpTarget" placeholder="例如 192.168.139.255">
+                </div>
+              </div>
+              <div class="mini-fields" style="margin-top: 9px">
+                <div class="field"><label for="udpCount">次数</label><input id="udpCount" type="number" min="1" max="100" value="1"></div>
+                <div class="field"><label for="udpInterval">间隔 ms</label><input id="udpInterval" type="number" min="0" max="60000" value="0"></div>
+                <div class="field"><label for="udpPayload">附加字节</label><input id="udpPayload" type="number" min="0" max="900" value="0"></div>
+              </div>
+              <div class="actions">
+                <button id="udpSendButton" class="primary">发送 UDP</button>
+                <button id="partyBurstButton">Party 首发节拍</button>
+                <button id="lanBeaconButton">发送 LAN beacon</button>
+              </div>
+              <p class="hint">“Party 首发节拍”发送 2 帧，间隔 51 ms，对应当前单机日志观察值。</p>
+            </div>
+            <div class="test-box">
+              <h3>TCP 探测</h3>
+              <div class="fields">
+                <div class="field wide">
+                  <label for="tcpTarget">目标 IPv4 / 主机名</label>
+                  <input id="tcpTarget" placeholder="例如 192.168.139.18">
+                </div>
+                <div class="field">
+                  <label for="tcpService">服务</label>
+                  <select id="tcpService"><option value="party">Party 50200</option><option value="setting">Setting 50201</option><option value="lan_sync">LAN sync 40110</option></select>
+                </div>
+                <div class="field">
+                  <label for="tcpTimeout">超时 ms</label>
+                  <input id="tcpTimeout" type="number" min="100" max="30000" value="3000">
+                </div>
+              </div>
+              <div class="actions">
+                <button id="tcpSendButton" class="primary">连接并双向收发</button>
+                <button id="selfTestButton">127.0.0.1 self-join 测试</button>
+              </div>
+              <p class="hint">先记录 connect 是否成功，再验证自定义应用层回包；两步结果会分开显示。</p>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="allUDPButton">四类 UDP 各发一次（Server/Parent）</button>
+            <button id="settingCadenceButton">Setting 每 3 秒 × 3</button>
+          </div>
+          <div id="testResult" class="result">启动节点后即可测试。建议两台机器设置不同节点名、相同组别。</div>
+          </div>
+        </details>
+
+        <section class="card">
+          <h2>计数器</h2>
+          <div class="stats">
+            <div class="stat"><strong id="statUdpTx">0</strong><span>UDP TX</span></div>
+            <div class="stat"><strong id="statUdpRx">0</strong><span>UDP RX</span></div>
+            <div class="stat"><strong id="statUdpResponse">0</strong><span>UDP 回包 RX</span></div>
+            <div class="stat"><strong id="statTcpOk">0</strong><span>TCP connect OK</span></div>
+            <div class="stat"><strong id="statErrors">0</strong><span>错误</span></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="events-head">
+            <h2 style="margin:0">实时事件</h2>
+            <div class="events-tools">
+              <select id="eventFilter"><option value="all">全部事件</option><option value="UDP">仅 UDP</option><option value="TCP">仅 TCP</option><option value="error">仅错误</option></select>
+              <button id="clearButton">清空</button>
+              <a class="button-link" href="/api/events/export">导出 JSONL</a>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>时间</th><th>级别</th><th>方向</th><th>服务</th><th>端点</th><th>事件 / 组</th><th>说明</th></tr></thead>
+              <tbody id="eventRows"><tr><td colspan="7">暂无事件</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div id="toast"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const state = { running: false, events: [], eventIDs: new Set(), initialized: false };
+
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+    }
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, { headers: {'Content-Type': 'application/json'}, ...options });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+      return payload;
+    }
+
+    function toast(message, isError = false) {
+      const element = $('toast');
+      element.textContent = message;
+      element.className = `show${isError ? ' error' : ''}`;
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => element.className = '', 3600);
+    }
+
+    function splitTargets(value) {
+      return value.split(/[;,\r\n]+/).map(x => x.trim()).filter(Boolean);
+    }
+
+    function configFromForm() {
+      return {
+        node_name: $('nodeName').value.trim(), group: $('group').value, group_role: $('groupRole').value, lan_role: $('lanRole').value, cabinet_mode: $('cabinetMode').value, bind_ip: $('bindIP').value,
+        targets: splitTargets($('targets').value), auto_reply: $('autoReply').checked, auto_join: $('autoJoin').checked,
+        event_mode: Number($('eventMode').value), music_id: Number($('musicID').value),
+        udp_party: $('udpParty').checked, udp_setting: $('udpSetting').checked, udp_advertise: $('udpAdvertise').checked,
+        tcp_party: $('tcpParty').checked, tcp_setting: $('tcpSetting').checked,
+        udp_lan_install: $('udpLanInstall').checked, tcp_lan_install: $('tcpLanInstall').checked
+      };
+    }
+
+    function syncGroupRole() {
+      const groupOff = $('group').value === 'OFF';
+      $('groupRoleOff').disabled = !groupOff;
+      if (groupOff) {
+        $('groupRole').value = 'off';
+      } else if ($('groupRole').value === 'off') {
+        $('groupRole').value = 'parent';
+      }
+      $('groupRole').disabled = state.running || groupOff;
+    }
+
+    function setFormConfig(config) {
+      $('nodeName').value = config.node_name || '';
+      $('group').value = config.group || 'A';
+      $('groupRole').value = config.group_role || 'parent';
+      $('lanRole').value = config.lan_role || 'server';
+      $('cabinetMode').value = config.cabinet_mode || 'SP';
+      syncGroupRole();
+      $('eventMode').value = config.event_mode ?? 0;
+      $('musicID').value = config.music_id ?? 0;
+      $('bindIP').value = config.bind_ip || '0.0.0.0';
+      $('targets').value = (config.targets || ['255.255.255.255']).join('\n');
+      $('autoReply').checked = !!config.auto_reply;
+      $('autoJoin').checked = !!config.auto_join;
+      $('udpParty').checked = !!config.udp_party;
+      $('udpSetting').checked = !!config.udp_setting;
+      $('udpAdvertise').checked = !!config.udp_advertise;
+      $('tcpParty').checked = !!config.tcp_party;
+      $('tcpSetting').checked = !!config.tcp_setting;
+      $('udpLanInstall').checked = !!config.udp_lan_install;
+      $('tcpLanInstall').checked = !!config.tcp_lan_install;
+    }
+
+    function renderInterfaces(interfaces, selectedIP) {
+      $('interfaceRows').innerHTML = interfaces.length ? interfaces.map(item => `
+        <tr><td>${esc(item.name)}</td><td class="mono">${esc((item.ipv4 || []).join(', '))}</td><td>${item.index}</td><td>${item.mtu} · ${esc(item.flags)}</td></tr>`).join('') : '<tr><td colspan="4">没有发现 IPv4 接口</td></tr>';
+      const options = ['<option value="0.0.0.0">0.0.0.0 — 模拟游戏默认，由 Windows 选择出口</option>'];
+      for (const item of interfaces) for (const ip of item.ipv4 || []) options.push(`<option value="${esc(ip)}">${esc(ip)} — ${esc(item.name)} (index ${item.index})</option>`);
+      $('bindIP').innerHTML = options.join('');
+      $('bindIP').value = [...$('bindIP').options].some(x => x.value === selectedIP) ? selectedIP : '0.0.0.0';
+    }
+
+    function renderStats(stats = {}) {
+      $('statUdpTx').textContent = stats.udp_tx || 0;
+      $('statUdpRx').textContent = stats.udp_rx || 0;
+      $('statUdpResponse').textContent = stats.udp_response_rx || 0;
+      $('statTcpOk').textContent = stats.tcp_connect_ok || 0;
+      $('statErrors').textContent = stats.errors || 0;
+    }
+
+    function renderWorkflow(status) {
+      const workflow = status.workflow || {};
+      const phase = workflow.phase || 'stopped';
+      const setStep = (id, done, active) => {
+        $(id).className = `step${done ? ' done' : active ? ' active' : ''}`;
+      };
+      setStep('stepLan', !!workflow.lan_ready, status.running && !workflow.lan_ready);
+      setStep('stepSetting', !!workflow.setting_ready, status.running && workflow.lan_ready && !workflow.setting_ready);
+      setStep('stepAdvertise', !!workflow.advertise_ready, status.running && workflow.setting_ready && !workflow.advertise_ready);
+      const usable = !!workflow.advertise_ready;
+      setStep('stepReady', usable, status.running && !usable);
+      const labels = {
+        stopped:'节点未启动', starting:'正在启动网络服务', lan_install_server:'LAN Install Server 正在广播',
+        waiting_lan_beacon:'等待 LAN Install beacon', setting_parent:'Parent 正在发布 SettingHostAddress',
+        waiting_setting_host:'等待 Parent 的 SettingHostAddress', advertise:'正在发送 AdvertiseRequest', ready:'启动完成，可以招募或加入',
+        startup_error:'启动首包发送失败', setting_disconnected:'Setting TCP 长连接已断开', recruiting:`正在招募，成员 ${workflow.member_count || 0}/4`, joined:'已加入店内 Party'
+      };
+      $('phaseText').textContent = labels[phase] || phase;
+      $('recruitStartButton').disabled = !status.running || !usable || !!workflow.recruiting || phase === 'joined' || status.config.group === 'OFF';
+      $('recruitStopButton').disabled = !status.running || !workflow.recruiting;
+      $('flowResult').textContent = labels[phase] || phase;
+      const invites = status.invites || [];
+      $('inviteList').innerHTML = invites.length ? invites.map(invite => `
+        <div class="invite">
+          <div><strong>${esc(invite.node_name || '未知 Host')}</strong><br><span class="hint">${esc(invite.host_ipv4)} · ${esc(invite.group)} 组 · Event ${invite.event_mode || 0} · Music ${invite.music_id || 0}</span></div>
+          <button class="joinInviteButton" data-id="${esc(invite.probe_id)}">加入</button>
+        </div>`).join('') : '<div class="hint">暂无邀请</div>';
+    }
+
+    function applyStatus(status, initializeForm = false) {
+      state.running = !!status.running;
+      $('runBadge').textContent = state.running ? `运行中 · ${status.config.group} 组` : '未启动';
+      $('runBadge').className = `badge${state.running ? ' running' : ''}`;
+      $('instanceBadge').textContent = `instance ${status.instance_id}`;
+      $('startButton').disabled = state.running;
+      $('stopButton').disabled = !state.running;
+      document.querySelectorAll('#nodeName,#group,#groupRole,#lanRole,#cabinetMode,#eventMode,#musicID,#bindIP,#targets,#autoReply,#autoJoin,#udpParty,#udpSetting,#udpAdvertise,#tcpParty,#tcpSetting,#udpLanInstall,#tcpLanInstall').forEach(x => x.disabled = state.running);
+      syncGroupRole();
+      const selectedIP = initializeForm ? status.config.bind_ip : $('bindIP').value;
+      renderInterfaces(status.interfaces || [], selectedIP);
+      if (initializeForm) setFormConfig(status.config);
+      renderStats(status.stats);
+      renderWorkflow(status);
+      const candidates = (status.interfaces || []).filter(item => String(item.flags || '').includes('up') && !String(item.flags || '').includes('loopback')).flatMap(item => item.ipv4 || []).filter(ip => !ip.startsWith('169.254.'));
+      const ambiguous = status.config.bind_ip === '0.0.0.0' && candidates.length > 1;
+      $('egressWarning').hidden = !ambiguous;
+      $('egressWarning').textContent = ambiguous ? `检测到 ${candidates.length} 个可用的非回环 IPv4。0.0.0.0 不会由程序逐网卡广播，实际出口由 Windows 路由与 metric 决定；建议再用具体联机 IPv4 复测。` : '';
+    }
+
+    function eventMatches(event) {
+      const filter = $('eventFilter').value;
+      return filter === 'all' || event.transport === filter || (filter === 'error' && event.level === 'error');
+    }
+
+    function formatTime(value) {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString('zh-CN', {hour12:false, fractionalSecondDigits:3});
+    }
+
+    function renderEvents() {
+      const visible = state.events.filter(eventMatches).slice(-500).reverse();
+      $('eventRows').innerHTML = visible.length ? visible.map(event => {
+        const endpoint = [event.local && `L ${event.local}`, event.remote && `R ${event.remote}`].filter(Boolean).map(esc).join('<br>');
+        const match = event.group_match === undefined ? '' : (event.group_match ? 'match' : 'mismatch');
+        const group = event.group ? `${event.group} ${match}` : '';
+        const details = [event.message, event.node_name && `node=${event.node_name}`, event.rtt_ms && `RTT=${event.rtt_ms.toFixed(3)} ms`, event.size && `${event.size} B`].filter(Boolean).map(esc).join('<br>');
+        return `<tr>
+          <td class="nowrap">${esc(formatTime(event.time))}</td>
+          <td class="level-${esc(event.level)}">${esc(event.level)}</td>
+          <td class="dir-${esc(event.direction)}">${esc(event.direction || '—')}</td>
+          <td class="nowrap">${esc(event.transport || '')} ${esc(event.service || '')}</td>
+          <td class="mono">${endpoint}</td>
+          <td><span class="mono">${esc(event.kind)}</span><br>${esc(group)}</td>
+          <td>${details}</td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="7">暂无匹配事件</td></tr>';
+    }
+
+    function addEvent(event) {
+      if (state.eventIDs.has(event.id)) return;
+      state.eventIDs.add(event.id);
+      state.events.push(event);
+      if (state.events.length > 1000) {
+        const removed = state.events.splice(0, state.events.length - 1000);
+        removed.forEach(item => state.eventIDs.delete(item.id));
+      }
+      renderEvents();
+    }
+
+    async function refreshStatus(initialize = false) {
+      const status = await api('/api/status');
+      applyStatus(status, initialize);
+    }
+
+    async function sendUDP(overrides = {}) {
+      const target = overrides.target ?? $('udpTarget').value.trim();
+      const payload = {
+        service: overrides.service || $('udpService').value,
+        targets: target ? splitTargets(target) : [],
+        count: overrides.count ?? Number($('udpCount').value),
+        interval_ms: overrides.interval ?? Number($('udpInterval').value),
+        payload_size: overrides.payload ?? Number($('udpPayload').value)
+      };
+      await api('/api/udp-probe', {method:'POST', body:JSON.stringify(payload)});
+      $('testResult').textContent = `已安排 ${payload.service} UDP：${payload.count} 次，间隔 ${payload.interval_ms} ms。等待 RX/RESPONSE 事件。`;
+    }
+
+    async function sendTCP(targetOverride) {
+      const target = targetOverride || $('tcpTarget').value.trim();
+      $('testResult').textContent = `正在连接 ${target || '未填写目标'}…`;
+      const result = await api('/api/tcp-probe', {method:'POST', body:JSON.stringify({
+        service: $('tcpService').value, target, timeout_ms: Number($('tcpTimeout').value)
+      })});
+      const groupText = result.group_match === undefined ? '' : `，组别${result.group_match ? '一致' : '不一致'}`;
+      $('testResult').textContent = `${result.message}${result.rtt_ms ? `，RTT ${result.rtt_ms.toFixed(3)} ms` : ''}${groupText}${result.remote_node ? `，远端 ${result.remote_node}` : ''}`;
+    }
+
+    $('startButton').addEventListener('click', async () => {
+      try {
+        const status = await api('/api/start', {method:'POST', body:JSON.stringify(configFromForm())});
+        applyStatus(status, false); toast('节点已启动');
+      } catch (error) { toast(error.message, true); }
+    });
+    $('group').addEventListener('change', syncGroupRole);
+    $('stopButton').addEventListener('click', async () => {
+      try { const status = await api('/api/stop', {method:'POST', body:'{}'}); applyStatus(status, false); toast('节点已停止'); }
+      catch (error) { toast(error.message, true); }
+    });
+    $('recruitStartButton').addEventListener('click', async () => {
+      try { const status = await api('/api/recruit/start', {method:'POST', body:'{}'}); applyStatus(status, false); toast('已开始店内招募'); }
+      catch (error) { toast(error.message, true); }
+    });
+    $('recruitStopButton').addEventListener('click', async () => {
+      try { const status = await api('/api/recruit/stop', {method:'POST', body:'{}'}); applyStatus(status, false); toast('招募已结束'); }
+      catch (error) { toast(error.message, true); }
+    });
+    $('inviteList').addEventListener('click', async (event) => {
+      const button = event.target.closest('.joinInviteButton');
+      if (!button) return;
+      try {
+        button.disabled = true;
+        const result = await api('/api/invite/join', {method:'POST', body:JSON.stringify({recruit_id:button.dataset.id})});
+        $('flowResult').textContent = result.message;
+        toast(result.message);
+        await refreshStatus(false);
+      } catch (error) { button.disabled = false; toast(error.message, true); }
+    });
+    $('refreshButton').addEventListener('click', () => refreshStatus(false).then(() => toast('网卡列表已刷新')).catch(e => toast(e.message, true)));
+    $('udpSendButton').addEventListener('click', () => sendUDP().catch(e => toast(e.message, true)));
+    $('partyBurstButton').addEventListener('click', () => sendUDP({service:'party', count:2, interval:51}).catch(e => toast(e.message, true)));
+    $('lanBeaconButton').addEventListener('click', () => sendUDP({service:'lan_beacon', count:1, interval:0}).catch(e => toast(e.message, true)));
+    $('allUDPButton').addEventListener('click', async () => {
+      try { for (const service of ['lan_beacon','setting','advertise','party']) await sendUDP({service, count:1, interval:0}); }
+      catch (error) { toast(error.message, true); }
+    });
+    $('settingCadenceButton').addEventListener('click', () => sendUDP({service:'setting', count:3, interval:3000}).catch(e => toast(e.message, true)));
+    $('tcpSendButton').addEventListener('click', () => sendTCP().catch(e => toast(e.message, true)));
+    $('selfTestButton').addEventListener('click', () => sendTCP('127.0.0.1').catch(e => toast(e.message, true)));
+    $('eventFilter').addEventListener('change', renderEvents);
+    $('clearButton').addEventListener('click', async () => {
+      try {
+        await api('/api/events/clear', {method:'POST', body:'{}'});
+        state.events = []; state.eventIDs.clear(); renderEvents(); toast('事件已清空');
+      } catch (error) { toast(error.message, true); }
+    });
+
+    const stream = new EventSource('/api/events');
+    stream.onopen = () => { $('streamBadge').textContent = '事件流已连接'; $('streamBadge').className = 'badge running'; };
+    stream.onerror = () => { $('streamBadge').textContent = '事件流重连中'; $('streamBadge').className = 'badge'; };
+    stream.onmessage = (message) => { try { addEvent(JSON.parse(message.data)); } catch (_) {} };
+
+    (async () => {
+      try {
+        const [status, recent] = await Promise.all([api('/api/status'), api('/api/events/recent')]);
+        applyStatus(status, true);
+        recent.forEach(addEvent);
+      } catch (error) { toast(error.message, true); }
+      setInterval(() => refreshStatus(false).catch(() => {}), 2000);
+    })();
+  </script>
+</body>
+</html>
